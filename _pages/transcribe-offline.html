@@ -1,0 +1,302 @@
+---
+layout: page
+title: Offline Transcriber (POC)
+permalink: /transcribe-offline
+---
+
+<style>
+  #ot-app * { box-sizing: border-box; }
+  #ot-app .ot-row { display: flex; flex-wrap: wrap; gap: 0.5em; align-items: center; margin: 0.6em 0; }
+  #ot-app select, #ot-app input[type="file"] {
+    padding: 0.45em 0.6em; border: 1px solid #ccc; border-radius: 6px; font: inherit; max-width: 100%;
+  }
+  #ot-app button {
+    padding: 0.6em 1.1em; border: 1px solid #bbb; border-radius: 8px;
+    background: #f6f6f6; font: inherit; cursor: pointer;
+  }
+  #ot-app button:disabled { opacity: 0.5; cursor: default; }
+  #ot-app button.ot-primary { background: #2a7d4f; border-color: #2a7d4f; color: #fff; }
+  #ot-app button.ot-danger { background: #b23b3b; border-color: #b23b3b; color: #fff; }
+  #ot-status { font-size: 0.9em; color: #555; min-height: 1.2em; }
+  #ot-progress { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; display: none; }
+  #ot-progress > div { height: 100%; width: 0%; background: #2a7d4f; transition: width 0.2s; }
+  #ot-rectime { font-variant-numeric: tabular-nums; color: #b23b3b; font-weight: 600; }
+  #ot-result {
+    border: 1px solid #ddd; border-radius: 8px; padding: 0.75em; background: #fafafa;
+    min-height: 6em; max-height: 22em; overflow-y: auto; white-space: pre-wrap; display: none;
+  }
+  #ot-app .ot-badge {
+    display: inline-block; font-size: 0.75em; padding: 0.15em 0.6em; border-radius: 999px;
+    background: #eee; color: #555;
+  }
+  #ot-app .ot-badge.ok { background: #dff0e5; color: #23663f; }
+</style>
+
+<div id="ot-app">
+  <p>
+    <strong>Proof of concept:</strong> speech-to-text that runs <em>entirely on this device</em>
+    using Whisper in the browser. The first run downloads the model (~40–80&nbsp;MB) and caches it;
+    after that, recording and transcription work with no internet at all.
+  </p>
+  <p>
+    <span class="ot-badge" id="ot-net">network: …</span>
+    <span class="ot-badge" id="ot-sw">offline page cache: …</span>
+    <span class="ot-badge" id="ot-model">model: not loaded</span>
+  </p>
+
+  <div class="ot-row">
+    <label for="ot-model-sel">Model</label>
+    <select id="ot-model-sel">
+      <option value="onnx-community/whisper-tiny">Whisper tiny — fastest (~40 MB)</option>
+      <option value="onnx-community/whisper-base">Whisper base — better accuracy (~80 MB)</option>
+    </select>
+    <label for="ot-lang">Language</label>
+    <select id="ot-lang">
+      <option value="auto">Auto-detect</option>
+      <option value="english">English</option>
+      <option value="chinese">中文</option>
+      <option value="korean">한국어</option>
+      <option value="japanese">日本語</option>
+      <option value="spanish">Español</option>
+      <option value="french">Français</option>
+      <option value="german">Deutsch</option>
+    </select>
+    <button id="ot-load" class="ot-primary">Load model</button>
+  </div>
+  <div id="ot-progress"><div></div></div>
+
+  <div class="ot-row">
+    <button id="ot-record" disabled>🎙 Record</button>
+    <button id="ot-stop" class="ot-danger" hidden>■ Stop &amp; transcribe</button>
+    <span id="ot-rectime" hidden>0:00</span>
+    <span style="color:#888;">or</span>
+    <input type="file" id="ot-file" accept="audio/*,video/mp4" disabled />
+  </div>
+
+  <div id="ot-status">Tap “Load model” to begin. On an iPad this needs Safari 16.4 or newer.</div>
+
+  <div id="ot-result"></div>
+
+  <div class="ot-row" id="ot-actions" style="display:none;">
+    <button id="ot-send" class="ot-primary">Send to Meeting Transcriber →</button>
+    <button id="ot-copy">Copy text</button>
+    <button id="ot-download">⬇ Download .md</button>
+  </div>
+
+  <p style="font-size:0.8em;color:#888;">
+    Notes for the iPad: keep this tab in the foreground while recording (Safari pauses
+    background tabs). Audio files exported from a recorder app (e.g. VIAIM Note → share to
+    Files) can be picked with the file button. Everything stays on the device — no audio or
+    text leaves it.
+  </p>
+</div>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/offline-sw.js").then(function (reg) {
+      document.getElementById("ot-sw").textContent = "offline page cache: ready";
+      document.getElementById("ot-sw").className = "ot-badge ok";
+    }).catch(function () {
+      document.getElementById("ot-sw").textContent = "offline page cache: unavailable";
+    });
+  } else {
+    document.getElementById("ot-sw").textContent = "offline page cache: unsupported";
+  }
+  function updateNet() {
+    var el = document.getElementById("ot-net");
+    el.textContent = "network: " + (navigator.onLine ? "online" : "offline");
+    el.className = "ot-badge" + (navigator.onLine ? " ok" : "");
+  }
+  window.addEventListener("online", updateNet);
+  window.addEventListener("offline", updateNet);
+  updateNet();
+</script>
+
+<script type="module">
+  const $ = (id) => document.getElementById(id);
+  const status = (t) => { $("ot-status").textContent = t; };
+
+  let asr = null;          // loaded pipeline
+  let loadedModel = "";
+  let mediaRecorder = null;
+  let recChunks = [];
+  let recTimer = null;
+  let lastSegments = [];   // [{time:"mm:ss", text}]
+
+  // ---------- model loading ----------
+  $("ot-load").addEventListener("click", async () => {
+    const model = $("ot-model-sel").value;
+    if (asr && loadedModel === model) { status("Model already loaded."); return; }
+    $("ot-load").disabled = true;
+    $("ot-progress").style.display = "block";
+    const bar = $("ot-progress").firstElementChild;
+    try {
+      status("Loading transformers.js…");
+      const { pipeline } = await import(
+        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/transformers.min.js"
+      );
+      status("Downloading / opening model (cached after first time)…");
+      const progress = {};
+      asr = await pipeline("automatic-speech-recognition", model, {
+        dtype: "q8",
+        progress_callback: (p) => {
+          if (p.status === "progress" && p.total) {
+            progress[p.file] = p.progress || 0;
+            const vals = Object.values(progress);
+            bar.style.width = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) + "%";
+          }
+        },
+      });
+      loadedModel = model;
+      bar.style.width = "100%";
+      $("ot-model").textContent = "model: ready (" + model.split("/")[1] + ")";
+      $("ot-model").className = "ot-badge ok";
+      $("ot-record").disabled = false;
+      $("ot-file").disabled = false;
+      status("Model ready — record or pick an audio file. This now works offline.");
+    } catch (e) {
+      status("Couldn't load the model: " + (e && e.message ? e.message : e) +
+        (navigator.onLine ? "" : " (first-time download needs internet)"));
+      asr = null;
+    } finally {
+      $("ot-load").disabled = false;
+      setTimeout(() => { $("ot-progress").style.display = "none"; }, 800);
+    }
+  });
+
+  // ---------- audio helpers ----------
+  async function blobToPCM16k(blob) {
+    const buf = await blob.arrayBuffer();
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ac = new AC();
+    const decoded = await ac.decodeAudioData(buf);
+    ac.close && ac.close();
+    const frames = Math.max(1, Math.ceil(decoded.duration * 16000));
+    const off = new OfflineAudioContext(1, frames, 16000);
+    const src = off.createBufferSource();
+    src.buffer = decoded;
+    src.connect(off.destination);
+    src.start();
+    const rendered = await off.startRendering();
+    return rendered.getChannelData(0);
+  }
+
+  function fmtTime(sec) {
+    if (sec == null || isNaN(sec)) return "";
+    sec = Math.max(0, Math.floor(sec));
+    return Math.floor(sec / 60) + ":" + ("0" + (sec % 60)).slice(-2);
+  }
+
+  async function transcribe(blob) {
+    if (!asr) { status("Load the model first."); return; }
+    try {
+      status("Decoding audio…");
+      const pcm = await blobToPCM16k(blob);
+      const mins = (pcm.length / 16000 / 60).toFixed(1);
+      status("Transcribing " + mins + " min on-device… (tiny ≈ realtime on a recent iPad)");
+      const opts = { chunk_length_s: 30, stride_length_s: 5, return_timestamps: true };
+      const lang = $("ot-lang").value;
+      if (lang !== "auto") { opts.language = lang; opts.task = "transcribe"; }
+      const t0 = performance.now();
+      const out = await asr(pcm, opts);
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+
+      lastSegments = (out.chunks || []).map((c) => ({
+        time: fmtTime(c.timestamp && c.timestamp[0]),
+        text: (c.text || "").trim(),
+      })).filter((s) => s.text);
+      if (!lastSegments.length && out.text) {
+        lastSegments = [{ time: "0:00", text: out.text.trim() }];
+      }
+
+      $("ot-result").style.display = "block";
+      $("ot-result").textContent = lastSegments
+        .map((s) => "[" + (s.time || "?") + "] " + s.text).join("\n");
+      $("ot-actions").style.display = "flex";
+      status("Done in " + secs + "s — everything stayed on this device.");
+    } catch (e) {
+      status("Transcription failed: " + (e && e.message ? e.message : e));
+    }
+  }
+
+  // ---------- recording ----------
+  $("ot-record").addEventListener("click", async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        clearInterval(recTimer);
+        $("ot-rectime").hidden = true;
+        $("ot-record").hidden = false;
+        $("ot-stop").hidden = true;
+        const blob = new Blob(recChunks, { type: mediaRecorder.mimeType || "audio/mp4" });
+        if (blob.size) transcribe(blob);
+        else status("No audio captured.");
+      };
+      mediaRecorder.start();
+      const started = Date.now();
+      $("ot-rectime").hidden = false;
+      recTimer = setInterval(() => {
+        $("ot-rectime").textContent = fmtTime((Date.now() - started) / 1000);
+      }, 500);
+      $("ot-record").hidden = true;
+      $("ot-stop").hidden = false;
+      status("Recording… speak normally; stop when the meeting (or test) is over.");
+    } catch (e) {
+      status("Microphone unavailable: " + (e && e.message ? e.message : e));
+    }
+  });
+  $("ot-stop").addEventListener("click", () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+  });
+
+  // ---------- file upload ----------
+  $("ot-file").addEventListener("change", function () {
+    const f = this.files && this.files[0];
+    if (f) transcribe(f);
+    this.value = "";
+  });
+
+  // ---------- handoff / export ----------
+  function pad2(t) {
+    const p = (t || "0:00").split(":");
+    return ("0" + (p[0] || "0")).slice(-2) + ":" + ("0" + (p[1] || "00")).slice(-2);
+  }
+  $("ot-send").addEventListener("click", () => {
+    try {
+      const KEY = "mt-session-v1";
+      let s = {};
+      try { s = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+      s.segments = (Array.isArray(s.segments) ? s.segments : []).concat(
+        lastSegments.map((x) => ({ time: pad2(x.time), speaker: "", text: x.text }))
+      );
+      if (!Array.isArray(s.actions)) s.actions = [];
+      if (!Array.isArray(s.decisions)) s.decisions = [];
+      localStorage.setItem(KEY, JSON.stringify(s));
+      window.location.href = "/transcribe";
+    } catch (e) {
+      status("Couldn't hand off: " + e.message);
+    }
+  });
+  $("ot-copy").addEventListener("click", () => {
+    navigator.clipboard.writeText($("ot-result").textContent)
+      .then(() => status("Copied."));
+  });
+  $("ot-download").addEventListener("click", () => {
+    const d = new Date();
+    const date = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    const md = "---\ntitle: \"Transcript " + date + "\"\n---\n\n" +
+      lastSegments.map((s) => "- **" + pad2(s.time) + ":** " + s.text).join("\n") + "\n";
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "transcript-" + date + ".md";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  });
+</script>

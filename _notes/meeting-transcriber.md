@@ -29,6 +29,14 @@ AI note-taking earbuds like the [VIAIM RecDot](https://store.viaim.ai/products/v
 
 VIAIM has no public developer API yet, so the export/import route is the reliable bridge.
 
+## Fully offline mode (proof of concept)
+
+[/transcribe-offline](/transcribe-offline) runs **Whisper directly in the browser** —
+after a one-time model download (~40–80 MB, cached on the device) it records and
+transcribes with no internet connection at all, on-device, including on an iPad
+(Safari 16.4+). Results can be handed off to the main transcriber page with one tap
+to add speakers, action items, and decisions before exporting.
+
 Practical tips:
 
 - Works best in Chrome, Edge, or Safari; most browsers need an internet connection for speech recognition.
