@@ -117,6 +117,25 @@ permalink: /transcribe
   </div>
 
   <div class="mt-panel">
+    <h3>🎧 Import from a recorder (e.g. VIAIM RecDot)</h3>
+    <p style="font-size:0.85em;color:#666;margin:0.2em 0 0.5em;">
+      Recorded the meeting with AI earbuds or a voice recorder instead? Export the
+      transcript from its app (VIAIM Note exports .txt) and upload or paste it here.
+      Speaker names and timestamps are detected when present, and the lines are appended
+      to the transcript above.
+    </p>
+    <div class="mt-row">
+      <input type="file" id="mt-import-file" accept=".txt,.md,.srt,.vtt" />
+    </div>
+    <textarea id="mt-import-text" rows="4" placeholder="…or paste the exported transcript here"
+      style="width:100%;padding:0.5em;border:1px solid #ccc;border-radius:6px;font:inherit;"></textarea>
+    <div class="mt-row">
+      <button id="mt-import-btn">Import into transcript</button>
+      <span id="mt-import-status" style="font-size:0.85em;color:#666;"></span>
+    </div>
+  </div>
+
+  <div class="mt-panel">
     <h3>Export</h3>
     <div class="mt-row">
       <button id="mt-download" class="mt-primary">⬇ Download Markdown note</button>
@@ -436,6 +455,92 @@ permalink: /transcribe
   $("mt-decision-add").addEventListener("click", function () { addItem("mt-decision-input", "decisions", "mt-decisions"); });
   $("mt-decision-input").addEventListener("keydown", function (e) {
     if (e.key === "Enter") addItem("mt-decision-input", "decisions", "mt-decisions");
+  });
+
+  // ---------- transcript import (VIAIM Note .txt exports, SRT/VTT, generic) ----------
+  function normalizeTime(t) {
+    if (!t) return "";
+    var parts = t.split(":");
+    if (parts.length === 3) return ("0" + parts[0]).slice(-2) + ":" + ("0" + parts[1]).slice(-2);
+    if (parts.length === 2) return ("0" + parts[0]).slice(-2) + ":" + ("0" + parts[1]).slice(-2);
+    return "";
+  }
+
+  function parseImported(text) {
+    var segs = [];
+    var TIME = "(\\d{1,2}:\\d{2}(?::\\d{2})?)";
+    var TIME_FULL = "(\\d{1,2}:\\d{2}:\\d{2})";
+    // "[00:01:23] Name: text" / "00:01:23 Name: text" / "Name: text"
+    var inlineRe = new RegExp("^\\s*(?:\\[?" + TIME + "\\]?\\s+)?([^:：\\n]{1,40})[:：]\\s*(.+)$");
+    // "Speaker 1 00:00:05" — name then full timestamp, alone on a line (VIAIM Note style).
+    // Requires H:MM:SS so prose ending in a clock time ("meet at 10:30") isn't swallowed.
+    var trailHeaderRe = new RegExp("^\\s*([^:：\\n]{1,30}?)\\s+[\\[(]?" + TIME_FULL + "[\\])]?\\s*$");
+    // "[00:01:23] Name" — timestamp then name, alone on a line
+    var leadHeaderRe = new RegExp("^\\s*\\[?" + TIME + "\\]?\\s+([^:：\\n]{1,30})\\s*$");
+    var timingRe = new RegExp("^\\s*" + TIME + "[.,]?\\d*\\s*-->\\s*" + TIME);
+    function isSpeakerName(s) {
+      return s && s.length <= 30 && s.split(/\s+/).length <= 4 &&
+        !/[.!?,。！？，]$/.test(s) && !/^\d+$/.test(s);
+    }
+
+    var lines = text.split(/\r?\n/);
+    var pendingSpeaker = "", pendingTime = "";
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) { pendingSpeaker = ""; pendingTime = ""; continue; }
+      if (/^\d+$/.test(line) || /^WEBVTT/i.test(line)) continue; // SRT index / VTT header
+      var timing = line.match(timingRe);
+      if (timing) { pendingTime = normalizeTime(timing[1]); continue; }
+
+      var h = line.match(trailHeaderRe);
+      if (h && isSpeakerName(h[1].trim())) {
+        pendingSpeaker = h[1].trim();
+        pendingTime = normalizeTime(h[2]);
+        continue;
+      }
+      h = line.match(leadHeaderRe);
+      if (h && isSpeakerName(h[2].trim())) {
+        pendingSpeaker = h[2].trim();
+        pendingTime = normalizeTime(h[1]);
+        continue;
+      }
+      var m = line.match(inlineRe);
+      if (m && m[3] && isSpeakerName(m[2].trim())) {
+        segs.push({ time: normalizeTime(m[1]) || pendingTime, speaker: m[2].trim(), text: m[3].trim() });
+        continue;
+      }
+      segs.push({ time: pendingTime, speaker: pendingSpeaker, text: line });
+      pendingTime = "";
+    }
+    return segs;
+  }
+
+  function importText(text) {
+    var segs = parseImported(text);
+    if (!segs.length) {
+      $("mt-import-status").textContent = "Nothing recognizable to import.";
+      return;
+    }
+    state.segments = state.segments.concat(segs);
+    save();
+    renderSegments();
+    $("mt-import-status").textContent = "Imported " + segs.length + " line" + (segs.length === 1 ? "" : "s") + ".";
+    $("mt-import-text").value = "";
+  }
+
+  $("mt-import-btn").addEventListener("click", function () {
+    var t = $("mt-import-text").value.trim();
+    if (t) importText(t);
+    else $("mt-import-status").textContent = "Paste a transcript or choose a file first.";
+  });
+  $("mt-import-file").addEventListener("change", function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () { importText(String(reader.result || "")); };
+    reader.readAsText(f);
+    this.value = "";
   });
 
   $("mt-download").addEventListener("click", downloadMarkdown);
