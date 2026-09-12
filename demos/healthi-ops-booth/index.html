@@ -1,0 +1,1064 @@
+<title>Healthi Booth Console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  [hidden]{display:none!important}
+
+  :root{
+    --ground:#04161A;
+    --panel:#0A2429;
+    --panel-2:#0D2C32;
+    --line:#17414A;
+    --line-soft:#123138;
+    --ink:#E8F6F5;
+    --ink-2:#9FC0C2;
+    --ink-3:#6A8F93;
+    --teal:#1ED6C6;
+    --teal-deep:#0B8F8C;
+    --ok:#5AD9A2;
+    --watch:#F0B85C;
+    --attn:#EF7A5E;
+    --display:"Poppins","Helvetica Neue",Arial,sans-serif;
+    --ui:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+    --cjk:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--ui);
+    font-size:15px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- shell ---------- */
+  .kiosk{
+    min-height:100svh;
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    gap:14px;
+    padding-block:14px;
+    padding-left:16px;
+    padding-right:16px;
+    max-width:1760px;
+    margin:0 auto;
+    background:
+      radial-gradient(1100px 520px at 78% -12%,rgba(30,214,198,.10),transparent 60%),
+      radial-gradient(800px 400px at 4% 104%,rgba(11,143,140,.12),transparent 62%);
+  }
+
+  /* ---------- header ---------- */
+  .bar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:14px 22px;
+    padding:10px 16px;
+    border:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(13,44,50,.9),rgba(10,36,41,.9));
+  }
+  .logo{display:flex;align-items:center;gap:10px;min-width:0}
+  .logo svg{display:block;flex:none}
+  .logo b{
+    font-family:var(--display);
+    font-weight:700;
+    font-size:19px;
+    letter-spacing:.01em;
+  }
+  .logo span{
+    display:block;
+    font-size:10.5px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+    margin-top:-2px;
+  }
+  .award{
+    font-size:11.5px;
+    letter-spacing:.04em;
+    color:var(--ink-2);
+    border-left:1px solid var(--line);
+    padding-left:20px;
+  }
+  .award em{font-style:normal;color:var(--teal)}
+  .bar-right{
+    margin-left:auto;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .tag{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:4px 9px;
+    border:1px solid var(--line);
+    color:var(--ink-2);
+    white-space:nowrap;
+  }
+  .tag.live{border-color:var(--teal-deep);color:var(--teal)}
+  .tag.demo{border-color:#5d4a1f;color:var(--watch)}
+  .dot{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--teal);
+    display:inline-block;
+    margin-right:7px;
+    vertical-align:1px;
+  }
+  [data-state="attract"] .dot{background:var(--ink-3)}
+  .clock{font-family:var(--mono);font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+
+  /* ---------- main grid ---------- */
+  .stage{
+    display:grid;
+    grid-template-columns:250px minmax(0,1fr) 310px;
+    gap:14px;
+    align-items:stretch;
+  }
+  .card{
+    border:1px solid var(--line);
+    background:var(--panel);
+    min-width:0;
+  }
+  .card-h{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:10px;
+    padding:11px 14px;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .card-h h2{
+    margin:0;
+    font-family:var(--ui);
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--ink-2);
+  }
+  .card-h .hint{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.06em}
+
+  /* ---------- session rail (TCM) ---------- */
+  .rail{display:flex;flex-direction:column}
+  .steps{display:flex;flex-direction:column;flex:1}
+  .step{
+    display:grid;
+    grid-template-columns:34px minmax(0,1fr);
+    gap:12px;
+    padding:13px 14px;
+    border-bottom:1px solid var(--line-soft);
+    position:relative;
+  }
+  .step:last-child{border-bottom:0}
+  .step::before{
+    content:"";
+    position:absolute;left:0;top:0;bottom:0;width:2px;
+    background:transparent;
+  }
+  .step[data-on="done"]::before{background:var(--teal-deep)}
+  .step[data-on="now"]::before{background:var(--teal)}
+  .glyph{
+    font-family:var(--cjk);
+    font-size:23px;
+    line-height:1;
+    color:var(--ink-3);
+    text-align:center;
+    padding-top:2px;
+  }
+  .step[data-on="now"] .glyph{color:var(--teal)}
+  .step[data-on="done"] .glyph{color:var(--ok)}
+  .step h3{
+    margin:0;
+    font-size:13.5px;
+    font-weight:600;
+    letter-spacing:.01em;
+  }
+  .step p{margin:2px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.4}
+  .step .num{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--ink-3);
+    letter-spacing:.1em;
+  }
+  .step[data-on="now"] .num{color:var(--teal)}
+  .primary-flag{
+    display:inline-block;
+    margin-top:5px;
+    font-family:var(--mono);
+    font-size:9.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--teal);
+    border:1px solid var(--teal-deep);
+    padding:2px 6px;
+  }
+  .rail-foot{
+    padding:12px 14px;
+    border-top:1px solid var(--line-soft);
+    font-size:11px;
+    color:var(--ink-3);
+    line-height:1.45;
+  }
+  .rail-foot b{color:var(--ink-2);font-weight:500}
+
+  /* ---------- theatre ---------- */
+  .theatre{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:26px 30px;
+    position:relative;
+    overflow:hidden;
+    background:
+      linear-gradient(180deg,var(--panel-2),var(--panel) 70%);
+  }
+  .theatre::after{
+    content:"";
+    position:absolute;inset:0;
+    background-image:linear-gradient(rgba(30,214,198,.045) 1px,transparent 1px);
+    background-size:100% 34px;
+    pointer-events:none;
+  }
+  .panel{position:relative;z-index:1}
+
+  /* attract */
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--display);
+    font-weight:700;
+    font-size:clamp(30px,3.5vw,54px);
+    line-height:1.06;
+    letter-spacing:-.015em;
+    margin:0;
+    text-wrap:balance;
+    max-width:17ch;
+  }
+  .lede{
+    margin:16px 0 0;
+    font-size:clamp(15px,1.25vw,19px);
+    color:var(--ink-2);
+    max-width:46ch;
+  }
+  .three{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 10px;
+    margin-top:18px;
+  }
+  .three span{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.13em;
+    text-transform:uppercase;
+    color:var(--ink);
+    border:1px solid var(--line);
+    background:rgba(4,22,26,.55);
+    padding:6px 11px;
+  }
+  .cleared{
+    margin:20px 0 0;
+    font-family:var(--ui);
+    font-weight:500;
+    /* ~ one third of the headline size */
+    font-size:clamp(12px,1.15vw,17px);
+    color:var(--ink);
+  }
+  .cleared i{font-style:normal;color:var(--ok);margin-right:7px}
+  .fine{
+    margin:7px 0 0;
+    font-size:10.5px;
+    line-height:1.45;
+    color:var(--ink-3);
+    max-width:62ch;
+  }
+  .cta-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:24px}
+  .btn{
+    font-family:var(--ui);
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:.02em;
+    padding:12px 22px;
+    border:1px solid var(--teal-deep);
+    background:var(--teal);
+    color:#032024;
+    cursor:pointer;
+  }
+  .btn:hover{background:#3ce2d3}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+  .btn.ghost:hover{border-color:var(--teal-deep);color:var(--teal)}
+  .btn:focus-visible,.chip:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+  .motto{
+    margin:22px 0 0;
+    font-family:var(--display);
+    font-weight:500;
+    font-size:13px;
+    color:var(--ink-2);
+    font-style:italic;
+  }
+
+  /* capture panels */
+  .cap{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:26px;align-items:center}
+  .cap h2.big{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:clamp(22px,2.2vw,32px);
+    margin:0 0 8px;
+    letter-spacing:-.01em;
+  }
+  .cap .say{
+    font-size:15px;
+    color:var(--ink-2);
+    margin:0 0 18px;
+    max-width:44ch;
+  }
+  .cap .say q{color:var(--ink);font-style:normal}
+  canvas{display:block;width:100%;max-width:100%}
+  .wave-wrap{border:1px solid var(--line-soft);background:rgba(4,22,26,.5);padding:10px}
+  .meters{display:grid;gap:10px;margin-top:16px}
+  .meter{display:grid;grid-template-columns:98px minmax(0,1fr) 48px;gap:10px;align-items:center}
+  .meter label{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+  }
+  .track{height:4px;background:var(--line-soft);position:relative;overflow:hidden}
+  .track i{position:absolute;inset:0 auto 0 0;background:var(--teal);width:0}
+  .meter output{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--ink-2);
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  .timer{
+    text-align:center;
+  }
+  .timer .ring{position:relative;width:170px;max-width:100%;margin:0 auto}
+  .timer .val{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:var(--mono);
+    font-variant-numeric:tabular-nums;
+  }
+  .timer .val strong{font-size:32px;font-weight:500;letter-spacing:-.02em;color:var(--ink)}
+  .timer .val em{
+    font-style:normal;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-top:4px;
+  }
+  .timer p{margin:12px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.45}
+
+  .facebox{position:relative;border:1px solid var(--line-soft);background:rgba(4,22,26,.6)}
+
+  /* snapshot */
+  .snap h2.big{margin-bottom:6px}
+  .snap .say{margin-bottom:20px}
+  .pillars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .pillar{
+    border:1px solid var(--line-soft);
+    padding:13px 14px;
+    background:rgba(4,22,26,.45);
+    display:flex;
+    flex-direction:column;
+    gap:9px;
+  }
+  .pillar .pl{
+    display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  }
+  .pillar strong{font-family:var(--display);font-weight:600;font-size:15px}
+  .pillar .sc{font-family:var(--mono);font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .pillar p{margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.42}
+  .pillar .track i{background:var(--ok)}
+  .pillar[data-tone="watch"] .track i{background:var(--watch)}
+  .pillar[data-tone="watch"] .sc{color:var(--watch)}
+  .lead-note{
+    margin:14px 0 0;
+    font-size:12px;
+    color:var(--ink-2);
+    border-left:2px solid var(--teal-deep);
+    padding-left:11px;
+    max-width:60ch;
+  }
+  .handover{
+    display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+    margin-top:18px;padding-top:16px;border-top:1px solid var(--line-soft);
+  }
+  .handover p{margin:0;font-size:12px;color:var(--ink-3);max-width:42ch}
+  .handover a{color:var(--teal)}
+  .disc{
+    margin:14px 0 0;
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.05em;
+    color:var(--ink-3);
+  }
+
+  /* ---------- readout ---------- */
+  .readout{display:flex;flex-direction:column}
+  .idle{
+    padding:20px 14px;
+    font-size:12.5px;
+    color:var(--ink-3);
+    line-height:1.5;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:10px;
+  }
+  .idle b{display:block;color:var(--ink-2);font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:400}
+  .metrics{flex:1;display:flex;flex-direction:column}
+  .metric{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:4px 10px;
+    padding:11px 14px;
+    border-bottom:1px solid var(--line-soft);
+    align-items:baseline;
+  }
+  .metric:last-of-type{border-bottom:0}
+  .metric .nm{font-size:12.5px;color:var(--ink-2)}
+  .metric .vv{
+    font-family:var(--mono);
+    font-size:19px;
+    letter-spacing:-.01em;
+    color:var(--ink);
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .metric .vv u{text-decoration:none;font-size:11px;color:var(--ink-3);margin-left:3px}
+  .metric .src{
+    grid-column:1/2;
+    font-family:var(--mono);
+    font-size:9.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+  }
+  .metric .st{
+    grid-column:2/3;
+    font-size:10.5px;
+    text-align:right;
+    color:var(--ok);
+  }
+  .metric[data-tone="watch"] .st{color:var(--watch)}
+  .metric[data-tone="watch"] .vv{color:var(--watch)}
+  .metric[data-pending="1"] .vv{color:var(--ink-3)}
+  .metric[data-pending="1"] .st{color:var(--ink-3)}
+  .readout-foot{
+    padding:11px 14px;
+    border-top:1px solid var(--line-soft);
+    font-size:10.5px;
+    color:var(--ink-3);
+    line-height:1.45;
+  }
+
+  /* ---------- footer ---------- */
+  .foot{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:12px 20px;
+    padding:11px 16px;
+    border:1px solid var(--line);
+    background:rgba(10,36,41,.75);
+  }
+  .mottos{
+    font-family:var(--display);
+    font-weight:500;
+    font-size:12.5px;
+    color:var(--ink-2);
+    margin:0;
+  }
+  .mottos i{font-style:italic}
+  .mottos b{color:var(--teal-deep);font-weight:500;margin:0 8px}
+  .jump{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto;align-items:center}
+  .jump .lb{
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-right:4px;
+  }
+  .chip{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:6px 10px;
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--ink-2);
+    cursor:pointer;
+  }
+  .chip:hover{border-color:var(--teal-deep);color:var(--teal)}
+  .chip[aria-current="true"]{border-color:var(--teal);color:#032024;background:var(--teal)}
+
+  /* ---------- responsive: 4:3 and 1:1 capture, phones ---------- */
+  @media (max-width:1180px){
+    .stage{grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:auto auto}
+    .rail{grid-column:1/-1}
+    .steps{flex-direction:row}
+    .step{flex:1;border-bottom:0;border-right:1px solid var(--line-soft);grid-template-columns:28px minmax(0,1fr)}
+    .step:last-child{border-right:0}
+    .step p{display:none}
+    .rail-foot{display:none}
+    h1{font-size:clamp(28px,4.4vw,44px)}
+    .cleared{font-size:clamp(12px,1.5vw,15px)}
+  }
+  @media (max-width:900px){
+    .stage{grid-template-columns:minmax(0,1fr)}
+    .readout{grid-column:1/-1}
+    .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+    .metric{border-bottom:0;border-right:1px solid var(--line-soft)}
+    .metric:nth-child(3n){border-right:0}
+    .cap{grid-template-columns:minmax(0,1fr)}
+    .timer{display:flex;gap:18px;align-items:center;text-align:left}
+    .timer .ring{width:120px;margin:0}
+    .timer p{margin:0}
+  }
+  @media (max-width:680px){
+    .kiosk{min-height:0}
+    .steps{flex-direction:column}
+    .step{border-right:0;border-bottom:1px solid var(--line-soft)}
+    .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .metric:nth-child(3n){border-right:1px solid var(--line-soft)}
+    .metric:nth-child(2n){border-right:0}
+    .pillars{grid-template-columns:minmax(0,1fr)}
+    .award{border-left:0;padding-left:0;flex-basis:100%}
+    .theatre{padding:20px 18px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+
+<div class="kiosk" data-state="attract">
+
+  <header class="bar">
+    <div class="logo">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <rect x="2"  y="12" width="3" height="6"  rx="1.5" fill="#0B8F8C"/>
+        <rect x="8"  y="7"  width="3" height="16" rx="1.5" fill="#1ED6C6"/>
+        <rect x="14" y="3"  width="3" height="24" rx="1.5" fill="#1ED6C6"/>
+        <rect x="20" y="9"  width="3" height="12" rx="1.5" fill="#1ED6C6"/>
+        <rect x="26" y="13" width="3" height="4"  rx="1.5" fill="#0B8F8C"/>
+      </svg>
+      <div>
+        <b>Healthi</b>
+        <span>Voice For Health</span>
+      </div>
+    </div>
+    <p class="award">Healthcare Vendor of the Year 2026 <em>·</em> ASEAN Economic Forum, Bali</p>
+    <div class="bar-right">
+      <span class="tag demo">Example session · demo data</span>
+      <span class="tag live" id="statusTag"><span class="dot"></span><span id="statusText">Booth idle</span></span>
+      <span class="clock" id="clock">--:--</span>
+    </div>
+  </header>
+
+  <main class="stage">
+
+    <!-- session rail: TCM four examinations, voice first -->
+    <section class="card rail" aria-label="Session steps">
+      <div class="card-h">
+        <h2>Session</h2>
+        <span class="hint">望闻问切</span>
+      </div>
+      <div class="steps">
+        <div class="step" id="step-voice" data-on="next">
+          <div class="glyph" aria-hidden="true">闻</div>
+          <div>
+            <span class="num">01</span>
+            <h3>Listen · Voice check</h3>
+            <p>3 minutes of speech. Vocal biomarker AI.</p>
+            <span class="primary-flag">Primary modality</span>
+          </div>
+        </div>
+        <div class="step" id="step-scan" data-on="idle">
+          <div class="glyph" aria-hidden="true">望</div>
+          <div>
+            <span class="num">02</span>
+            <h3>Look · Face scan</h3>
+            <p>30 seconds, camera only. Confirms the voice reading.</p>
+          </div>
+        </div>
+        <div class="step" id="step-ask" data-on="idle">
+          <div class="glyph" aria-hidden="true">问</div>
+          <div>
+            <span class="num">03</span>
+            <h3>Ask · Six questions</h3>
+            <p>Sleep, stress, movement, mood, diet, work.</p>
+          </div>
+        </div>
+        <div class="step" id="step-feel" data-on="idle">
+          <div class="glyph" aria-hidden="true">切</div>
+          <div>
+            <span class="num">04</span>
+            <h3>Feel · Advocate follow-up</h3>
+            <p>A human walks the guest through the snapshot.</p>
+          </div>
+        </div>
+      </div>
+      <div class="rail-foot">
+        <b>Booth kit:</b> tablet, ring light, stool at 40–60&nbsp;cm. No cuffs, no wearables, no needles.
+      </div>
+    </section>
+
+    <!-- theatre -->
+    <section class="card theatre" aria-live="polite">
+
+      <!-- ATTRACT — the only panel carrying the FDA line, and it shows no indicator readings -->
+      <div class="panel" id="p-attract">
+        <p class="eyebrow">Contactless wellness check</p>
+        <h1>Your Voice Speaks. Your Face Confirms.</h1>
+        <p class="lede">AI wellness insights from a 3-minute voice check plus a 30-second face scan.</p>
+        <div class="three">
+          <span>Contactless</span><span>Instant</span><span>Private</span>
+        </div>
+        <p class="cleared"><i>✓</i>Face scan powered by US FDA-cleared rPPG technology*</p>
+        <p class="fine">*Underlying technology holds US FDA 510(k) clearance for pulse and breathing rate. Healthi is a wellness scan for awareness only, not a medical diagnosis.</p>
+        <div class="cta-row">
+          <button class="btn" id="btnStart" type="button">Start voice check</button>
+          <button class="btn ghost" id="btnTour" type="button">Play full demo</button>
+        </div>
+        <p class="motto">Prevention is always better than cure.</p>
+      </div>
+
+      <!-- VOICE -->
+      <div class="panel cap" id="p-voice" hidden>
+        <div>
+          <h2 class="big">Speak, don't perform.</h2>
+          <p class="say">Read this aloud at your own pace — the AI listens to <em>how</em> you speak, not what you say. <q>Prevention is always better than cure, and awareness is the first step towards transformation.</q></p>
+          <div class="wave-wrap"><canvas id="wave" height="120" aria-label="Live voice waveform"></canvas></div>
+          <div class="meters">
+            <div class="meter"><label for="mSig">Signal</label><div class="track"><i id="mSig"></i></div><output id="oSig">—</output></div>
+            <div class="meter"><label for="mNoise">Room noise</label><div class="track"><i id="mNoise"></i></div><output id="oNoise">—</output></div>
+            <div class="meter"><label for="mPace">Pace</label><div class="track"><i id="mPace"></i></div><output id="oPace">—</output></div>
+          </div>
+        </div>
+        <div class="timer">
+          <div class="ring">
+            <canvas id="ringVoice" width="340" height="340"></canvas>
+            <div class="val"><strong id="tVoice">3:00</strong><em>of 3:00</em></div>
+          </div>
+          <p>Keep the tablet an arm's length away. Pauses are fine.</p>
+        </div>
+      </div>
+
+      <!-- FACE SCAN -->
+      <div class="panel cap" id="p-scan" hidden>
+        <div>
+          <h2 class="big">Look here. Hold still.</h2>
+          <p class="say">The camera reads colour change in your skin — no contact, nothing worn, nothing stored as video.</p>
+          <div class="facebox"><canvas id="face" height="240" aria-label="Face scan alignment view"></canvas></div>
+        </div>
+        <div class="timer">
+          <div class="ring">
+            <canvas id="ringScan" width="340" height="340"></canvas>
+            <div class="val"><strong id="tScan">30</strong><em>seconds</em></div>
+          </div>
+          <p>Well-lit room, face centred, 40–60&nbsp;cm. Glasses are fine.</p>
+        </div>
+      </div>
+
+      <!-- SNAPSHOT -->
+      <div class="panel snap" id="p-snap" hidden>
+        <h2 class="big">Your wellness snapshot</h2>
+        <p class="say">Balance across three pillars — how Mental and Social are shaping Physical.</p>
+        <div class="pillars">
+          <div class="pillar" data-tone="watch">
+            <div class="pl"><strong>Mental</strong><span class="sc">58</span></div>
+            <div class="track"><i style="width:58%"></i></div>
+            <p>Voice markers point to carried tension. Worth paying attention to.</p>
+          </div>
+          <div class="pillar">
+            <div class="pl"><strong>Social</strong><span class="sc">71</span></div>
+            <div class="track"><i style="width:71%"></i></div>
+            <p>Steady connection and support showing through in speech energy.</p>
+          </div>
+          <div class="pillar">
+            <div class="pl"><strong>Physical</strong><span class="sc">76</span></div>
+            <div class="track"><i style="width:76%"></i></div>
+            <p>Indicators sit in your usual range today.</p>
+          </div>
+        </div>
+        <p class="lead-note">Mental and Social lead here: they are the pillars that move Physical over the coming months, which is where a short conversation is worth more than another number.</p>
+        <div class="handover">
+          <button class="btn" id="btnSend" type="button">Send my snapshot</button>
+          <button class="btn ghost" id="btnAgain" type="button">Next guest</button>
+          <p>A Country Advocate walks you through it — ask at the counter or email <a href="mailto:hi@voiceforhealth.ai">hi@voiceforhealth.ai</a>.</p>
+        </div>
+        <p class="disc">For wellness awareness only. Not a medical diagnosis.</p>
+      </div>
+    </section>
+
+    <!-- readout -->
+    <section class="card readout" aria-label="Wellness indicators">
+      <div class="card-h">
+        <h2>Wellness indicators</h2>
+        <span class="hint" id="roHint">idle</span>
+      </div>
+
+      <div class="idle" id="roIdle">
+        <b>Session idle</b>
+        Awareness indicators appear here once the voice check begins, then fill in during the face scan.
+      </div>
+
+      <div class="metrics" id="roList" hidden>
+        <div class="metric" data-pending="1" id="m-voice">
+          <span class="nm">Voice energy index</span>
+          <span class="vv" data-v>—</span>
+          <span class="src">Voice · 闻</span>
+          <span class="st" data-s>waiting</span>
+        </div>
+        <div class="metric" data-pending="1" id="m-pulse">
+          <span class="nm">Pulse rate</span>
+          <span class="vv" data-v>—<u>bpm</u></span>
+          <span class="src">Face scan · 望</span>
+          <span class="st" data-s>waiting</span>
+        </div>
+        <div class="metric" data-pending="1" id="m-resp">
+          <span class="nm">Breathing rate</span>
+          <span class="vv" data-v>—<u>/min</u></span>
+          <span class="src">Face scan · 望</span>
+          <span class="st" data-s>waiting</span>
+        </div>
+        <div class="metric" data-pending="1" id="m-spo2">
+          <span class="nm">Blood oxygen</span>
+          <span class="vv" data-v>—<u>%</u></span>
+          <span class="src">Face scan · 望</span>
+          <span class="st" data-s>waiting</span>
+        </div>
+        <div class="metric" data-pending="1" id="m-bp">
+          <span class="nm">Blood pressure trend</span>
+          <span class="vv" data-v>—</span>
+          <span class="src">Wellness estimate</span>
+          <span class="st" data-s>waiting</span>
+        </div>
+        <div class="metric" data-pending="1" id="m-stress">
+          <span class="nm">Stress balance</span>
+          <span class="vv" data-v>—</span>
+          <span class="src">Voice + face</span>
+          <span class="st" data-s>waiting</span>
+        </div>
+      </div>
+
+      <p class="readout-foot">Wellness indicators for awareness only. Not a medical device, and no diagnosis. Figures shown are demo data.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p class="mottos"><i>Prevention is always better than cure.</i><b>·</b><i>Awareness is the first step towards transformation.</i></p>
+    <div class="jump">
+      <span class="lb">Screen</span>
+      <button class="chip" type="button" data-go="attract" aria-current="true">Attract</button>
+      <button class="chip" type="button" data-go="voice">Voice</button>
+      <button class="chip" type="button" data-go="scan">Face scan</button>
+      <button class="chip" type="button" data-go="snapshot">Snapshot</button>
+      <button class="chip" type="button" id="btnSpeed">Demo ×6</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(s){ return document.querySelector(s); };
+  var kiosk = $(".kiosk");
+  var params = new URLSearchParams(location.search);
+  var still = params.get("still") === "1";
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var frozen = still || reduced;
+
+  var VOICE_SECONDS = 180, SCAN_SECONDS = 30;
+  var speeds = [6, 1], speedIx = 0;
+  var speed = function(){ return speeds[speedIx]; };
+
+  var FINAL = {
+    voice: { v: "63", u: "", s: "in range", tone: "ok" },
+    pulse: { v: "72", u: "bpm", s: "in range", tone: "ok" },
+    resp:  { v: "15", u: "/min", s: "in range", tone: "ok" },
+    spo2:  { v: "98", u: "%", s: "in range", tone: "ok" },
+    bp:    { v: "118/76", u: "", s: "usual range", tone: "ok" },
+    stress:{ v: "41", u: "", s: "worth attention", tone: "watch" }
+  };
+
+  var panels = { attract: $("#p-attract"), voice: $("#p-voice"), scan: $("#p-scan"), snapshot: $("#p-snap") };
+  var steps  = { voice: $("#step-voice"), scan: $("#step-scan"), ask: $("#step-ask"), feel: $("#step-feel") };
+  var statusText = $("#statusText"), roHint = $("#roHint");
+  var roIdle = $("#roIdle"), roList = $("#roList");
+
+  var state = "attract", t0 = 0, raf = 0, tour = false;
+
+  /* ---------- canvas helpers ---------- */
+  function fit(cv){
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = cv.clientWidth || cv.width, h = parseFloat(cv.getAttribute("height")) || cv.clientHeight;
+    if(!w) return null;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    var c = cv.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0);
+    return { c: c, w: w, h: h };
+  }
+
+  function noise(x){
+    return (Math.sin(x*1.7)+Math.sin(x*0.53+1.3)+Math.sin(x*3.11+2.1)*0.6)/2.6;
+  }
+
+  function drawWave(t){
+    var g = fit($("#wave")); if(!g) return;
+    var c = g.c, w = g.w, h = g.h, mid = h/2, step = 5, n = Math.floor(w/step);
+    c.clearRect(0,0,w,h);
+    c.strokeStyle = "rgba(23,65,74,.8)"; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(0,mid+.5); c.lineTo(w,mid+.5); c.stroke();
+    for(var i=0;i<n;i++){
+      var x = i*step + 2;
+      var env = 0.35 + 0.65*Math.abs(noise(i*0.09 - t*1.6));
+      var speech = 0.55 + 0.45*Math.sin(i*0.021 - t*0.9);
+      var a = Math.max(2, env*speech*(mid-6));
+      var lead = i > n-14;
+      c.fillStyle = lead ? "#1ED6C6" : "rgba(30,214,198," + (0.32 + 0.5*env).toFixed(3) + ")";
+      c.fillRect(x, mid-a, 2.6, a*2);
+    }
+  }
+
+  function drawFace(t){
+    var g = fit($("#face")); if(!g) return;
+    var c = g.c, w = g.w, h = g.h, cx = w/2, cy = h/2;
+    c.clearRect(0,0,w,h);
+    /* subject silhouette */
+    c.fillStyle = "rgba(30,214,198,.05)";
+    c.beginPath(); c.ellipse(cx, cy+4, h*0.27, h*0.35, 0, 0, Math.PI*2); c.fill();
+    /* oval guide */
+    c.strokeStyle = "rgba(30,214,198,.55)"; c.lineWidth = 1.5; c.setLineDash([7,7]);
+    c.beginPath(); c.ellipse(cx, cy+4, h*0.27, h*0.35, 0, 0, Math.PI*2); c.stroke();
+    c.setLineDash([]);
+    /* corner brackets */
+    var bw = h*0.40, bh = h*0.44, L = 16;
+    c.strokeStyle = "#1ED6C6"; c.lineWidth = 2;
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(s){
+      var x = cx + s[0]*bw, y = cy + s[1]*bh;
+      c.beginPath();
+      c.moveTo(x - s[0]*L, y); c.lineTo(x, y); c.lineTo(x, y - s[1]*L);
+      c.stroke();
+    });
+    /* region-of-interest ticks on forehead and cheeks */
+    var roi = [[0,-0.19],[-0.13,0.02],[0.13,0.02]];
+    roi.forEach(function(p,i){
+      var x = cx + p[0]*h, y = cy + p[1]*h;
+      var pulse = 0.5 + 0.5*Math.sin(t*6.2 - i*0.7);
+      c.strokeStyle = "rgba(90,217,162," + (0.35+0.5*pulse).toFixed(3) + ")";
+      c.lineWidth = 1;
+      c.strokeRect(x-13, y-9, 26, 18);
+    });
+    /* scan sweep */
+    var sy = cy - h*0.40 + ((t*0.42)%1)*h*0.80;
+    var grd = c.createLinearGradient(0, sy-16, 0, sy+16);
+    grd.addColorStop(0,"rgba(30,214,198,0)");
+    grd.addColorStop(.5,"rgba(30,214,198,.30)");
+    grd.addColorStop(1,"rgba(30,214,198,0)");
+    c.fillStyle = grd; c.fillRect(cx-bw-L, sy-16, (bw+L)*2, 32);
+    /* rolling blood-volume trace */
+    var pw = Math.min(150, w*0.34), px = w - pw - 12, py = h - 34;
+    c.strokeStyle = "#5AD9A2"; c.lineWidth = 1.4; c.beginPath();
+    for(var i2=0;i2<=pw;i2++){
+      var ph = (i2/pw)*3.4 - t*3.2, beat = Math.exp(-Math.pow(((ph%2.2)+2.2)%2.2 - 0.5, 2)*9);
+      var y2 = py - beat*20 + Math.sin(ph*3)*1.6;
+      if(i2===0) c.moveTo(px+i2,y2); else c.lineTo(px+i2,y2);
+    }
+    c.stroke();
+    c.fillStyle = "rgba(106,143,147,.95)";
+    c.font = "10px 'IBM Plex Mono', monospace";
+    c.fillText("BLOOD VOLUME PULSE", px, py+18);
+    c.fillText("ROI 3/3  ·  ALIGNED", 12, h-14);
+  }
+
+  function drawRing(cv, frac, t){
+    var g = fit(cv); if(!g) return;
+    var c = g.c, w = g.w, h = g.h, cx = w/2, cy = h/2, r = Math.min(w,h)/2 - 10;
+    c.clearRect(0,0,w,h);
+    c.strokeStyle = "#17414A"; c.lineWidth = 6;
+    c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.stroke();
+    c.strokeStyle = "#1ED6C6"; c.lineWidth = 6; c.lineCap = "round";
+    c.beginPath(); c.arc(cx,cy,r,-Math.PI/2, -Math.PI/2 + Math.PI*2*Math.max(frac,0.001)); c.stroke();
+    /* tick marks */
+    c.strokeStyle = "rgba(23,65,74,.9)"; c.lineWidth = 1;
+    for(var i=0;i<48;i++){
+      var a = i/48*Math.PI*2;
+      c.beginPath();
+      c.moveTo(cx+Math.cos(a)*(r-13), cy+Math.sin(a)*(r-13));
+      c.lineTo(cx+Math.cos(a)*(r-9),  cy+Math.sin(a)*(r-9));
+      c.stroke();
+    }
+  }
+
+  /* ---------- readout ---------- */
+  function setMetric(id, v, unit, status, tone, pending){
+    var el = document.getElementById("m-"+id); if(!el) return;
+    el.querySelector("[data-v]").innerHTML = v + (unit ? '<u>'+unit+'</u>' : "");
+    el.querySelector("[data-s]").textContent = status;
+    el.setAttribute("data-tone", tone || "ok");
+    el.setAttribute("data-pending", pending ? "1" : "0");
+  }
+  function resetMetrics(){
+    ["voice","pulse","resp","spo2","bp","stress"].forEach(function(k){
+      var u = FINAL[k].u;
+      setMetric(k, "—", u, "waiting", "ok", true);
+    });
+  }
+  function settleMetrics(keys){
+    keys.forEach(function(k){
+      var f = FINAL[k];
+      setMetric(k, f.v, f.u, f.s, f.tone, false);
+    });
+  }
+
+  function setMeter(bar, out, frac, label){
+    $(bar).style.width = Math.round(frac*100) + "%";
+    $(out).textContent = label;
+  }
+
+  /* ---------- state ---------- */
+  function setState(s, opts){
+    state = s;
+    kiosk.setAttribute("data-state", s);
+    Object.keys(panels).forEach(function(k){ panels[k].hidden = (k !== s); });
+    document.querySelectorAll(".chip[data-go]").forEach(function(b){
+      b.setAttribute("aria-current", b.getAttribute("data-go") === s ? "true" : "false");
+    });
+
+    if(s === "attract"){
+      steps.voice.dataset.on = "next"; steps.scan.dataset.on = "idle";
+      steps.ask.dataset.on = "idle";  steps.feel.dataset.on = "idle";
+      statusText.textContent = "Booth idle";
+      roHint.textContent = "idle"; roIdle.hidden = false; roList.hidden = true;
+      resetMetrics();
+    } else if(s === "voice"){
+      steps.voice.dataset.on = "now"; steps.scan.dataset.on = "next";
+      steps.ask.dataset.on = "idle";  steps.feel.dataset.on = "idle";
+      statusText.textContent = "Listening · voice check";
+      roHint.textContent = "capturing"; roIdle.hidden = true; roList.hidden = false;
+      resetMetrics();
+      setMetric("voice", "—", "", "capturing", "ok", true);
+    } else if(s === "scan"){
+      steps.voice.dataset.on = "done"; steps.scan.dataset.on = "now";
+      steps.ask.dataset.on = "next";  steps.feel.dataset.on = "idle";
+      statusText.textContent = "Scanning · 30 seconds";
+      roHint.textContent = "capturing"; roIdle.hidden = true; roList.hidden = false;
+      settleMetrics(["voice"]);
+      ["pulse","resp","spo2","bp","stress"].forEach(function(k){
+        setMetric(k, "—", FINAL[k].u, "reading", "ok", true);
+      });
+    } else {
+      steps.voice.dataset.on = "done"; steps.scan.dataset.on = "done";
+      steps.ask.dataset.on = "now";   steps.feel.dataset.on = "next";
+      statusText.textContent = "Snapshot ready";
+      roHint.textContent = "complete"; roIdle.hidden = true; roList.hidden = false;
+      settleMetrics(["voice","pulse","resp","spo2","bp","stress"]);
+      setMeter("#mSig","#oSig",0.92,"92%");
+      setMeter("#mNoise","#oNoise",0.22,"low");
+      setMeter("#mPace","#oPace",0.68,"steady");
+    }
+
+    t0 = performance.now();
+    if(opts && opts.tour === false) tour = false;
+    if(frozen){ paintStill(); } else { loop(); }
+  }
+
+  function paintStill(){
+    var t = 3.1;
+    if(state === "voice"){
+      drawWave(t); drawRing($("#ringVoice"), 0.62, t);
+      $("#tVoice").textContent = "1:08";
+      setMeter("#mSig","#oSig",0.92,"92%");
+      setMeter("#mNoise","#oNoise",0.22,"low");
+      setMeter("#mPace","#oPace",0.68,"steady");
+      setMetric("voice", "63", "", "in range", "ok", false);
+    } else if(state === "scan"){
+      drawFace(t); drawRing($("#ringScan"), 0.6, t);
+      $("#tScan").textContent = "12";
+      settleMetrics(["voice","pulse","resp"]);
+      setMetric("spo2", "97", "%", "reading", "ok", true);
+    }
+  }
+
+  function fmt(sec){
+    sec = Math.max(0, Math.ceil(sec));
+    var m = Math.floor(sec/60), s = sec%60;
+    return m + ":" + (s<10?"0":"") + s;
+  }
+
+  function loop(){
+    cancelAnimationFrame(raf);
+    if(frozen) return;
+    var tick = function(now){
+      var el = (now - t0)/1000, t = now/1000;
+      if(state === "voice"){
+        var dur = VOICE_SECONDS/speed(), f = Math.min(el/dur, 1);
+        drawWave(t); drawRing($("#ringVoice"), f, t);
+        $("#tVoice").textContent = fmt(VOICE_SECONDS*(1-f));
+        setMeter("#mSig","#oSig", 0.72+0.2*Math.abs(noise(t*0.8)), Math.round(74+18*Math.abs(noise(t*0.8)))+"%");
+        setMeter("#mNoise","#oNoise", 0.18+0.1*Math.abs(noise(t*0.4+9)), "low");
+        setMeter("#mPace","#oPace", 0.6+0.12*Math.abs(noise(t*0.3+4)), "steady");
+        if(f > 0.25){
+          var vv = Math.round(58 + 7*Math.abs(noise(t*0.5)));
+          setMetric("voice", String(vv), "", "reading", "ok", true);
+        }
+        if(f >= 1){ setState("scan"); return; }
+      } else if(state === "scan"){
+        var dur2 = SCAN_SECONDS/speed(), f2 = Math.min(el/dur2, 1);
+        drawFace(t); drawRing($("#ringScan"), f2, t);
+        $("#tScan").textContent = String(Math.max(0, Math.ceil(SCAN_SECONDS*(1-f2))));
+        if(f2 > 0.18) setMetric("pulse", String(Math.round(71 + 3*noise(t*1.1))), "bpm", "reading", "ok", true);
+        if(f2 > 0.38) setMetric("resp", String(Math.round(15 + 1.4*noise(t*0.7+3))), "/min", "reading", "ok", true);
+        if(f2 > 0.58) setMetric("spo2", String(Math.round(97 + 1.2*Math.abs(noise(t*0.9+1)))), "%", "reading", "ok", true);
+        if(f2 > 0.76) setMetric("bp", "≈ 118/76", "", "estimating", "ok", true);
+        if(f2 >= 1){ setState("snapshot"); return; }
+      } else if(state === "attract" && tour){
+        setState("voice"); return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  /* ---------- controls ---------- */
+  $("#btnStart").addEventListener("click", function(){ tour = false; setState("voice"); });
+  $("#btnTour").addEventListener("click", function(){ tour = true; setState("voice"); });
+  $("#btnAgain").addEventListener("click", function(){ tour = false; setState("attract"); });
+  $("#btnSend").addEventListener("click", function(){
+    var b = $("#btnSend"); b.textContent = "Sent to the counter"; b.disabled = true;
+  });
+  document.querySelectorAll(".chip[data-go]").forEach(function(b){
+    b.addEventListener("click", function(){ tour = false; setState(b.getAttribute("data-go")); });
+  });
+  $("#btnSpeed").addEventListener("click", function(){
+    speedIx = (speedIx + 1) % speeds.length;
+    $("#btnSpeed").textContent = speed() === 1 ? "Real time" : "Demo ×" + speed();
+    t0 = performance.now();
+  });
+
+  /* clock */
+  function clock(){
+    var d = new Date();
+    $("#clock").textContent = ("0"+d.getHours()).slice(-2) + ":" + ("0"+d.getMinutes()).slice(-2);
+  }
+  clock(); setInterval(clock, 20000);
+
+  window.addEventListener("resize", function(){ if(frozen) paintStill(); });
+
+  var start = params.get("state");
+  setState(panels[start] ? start : "attract");
+})();
+</script>
