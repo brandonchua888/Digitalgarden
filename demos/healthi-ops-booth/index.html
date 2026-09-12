@@ -783,6 +783,10 @@
   var frozen = still || reduced;
 
   var VOICE_SECONDS = 180, SCAN_SECONDS = 30;
+  /* preview mode: compress each phase to a fixed screen time for the walkthrough
+     reel, so the countdowns still run smoothly end to end */
+  var preview = params.get("preview") === "1";
+  var VOICE_DUR = preview ? 13 : 0, SCAN_DUR = preview ? 9 : 0;
   var speeds = [6, 1], speedIx = 0;
   var speed = function(){ return speeds[speedIx]; };
 
@@ -1005,7 +1009,7 @@
     var tick = function(now){
       var el = (now - t0)/1000, t = now/1000;
       if(state === "voice"){
-        var dur = VOICE_SECONDS/speed(), f = Math.min(el/dur, 1);
+        var dur = VOICE_DUR || VOICE_SECONDS/speed(), f = Math.min(el/dur, 1);
         drawWave(t); drawRing($("#ringVoice"), f, t);
         $("#tVoice").textContent = fmt(VOICE_SECONDS*(1-f));
         setMeter("#mSig","#oSig", 0.72+0.2*Math.abs(noise(t*0.8)), Math.round(74+18*Math.abs(noise(t*0.8)))+"%");
@@ -1017,7 +1021,7 @@
         }
         if(f >= 1){ setState("scan"); return; }
       } else if(state === "scan"){
-        var dur2 = SCAN_SECONDS/speed(), f2 = Math.min(el/dur2, 1);
+        var dur2 = SCAN_DUR || SCAN_SECONDS/speed(), f2 = Math.min(el/dur2, 1);
         drawFace(t); drawRing($("#ringScan"), f2, t);
         $("#tScan").textContent = String(Math.max(0, Math.ceil(SCAN_SECONDS*(1-f2))));
         if(f2 > 0.18) setMetric("pulse", String(Math.round(71 + 3*noise(t*1.1))), "bpm", "reading", "ok", true);
@@ -1057,6 +1061,10 @@
   clock(); setInterval(clock, 20000);
 
   window.addEventListener("resize", function(){ if(frozen) paintStill(); });
+
+  if(preview){
+    document.querySelector(".tag.demo").textContent = "Preview \u00b7 timings compressed";
+  }
 
   var start = params.get("state");
   setState(panels[start] ? start : "attract");

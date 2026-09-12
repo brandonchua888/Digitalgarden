@@ -36,6 +36,28 @@ URL parameters, for pinning a screen or grabbing a still:
 - `?state=attract|voice|scan|snapshot` — open directly on that screen
 - `?still=1` — freeze the animation on a representative frame (used for the exports)
 
+## Walkthrough reel
+
+A recorded run-through of a full session, for previewing the flow without standing at the
+booth. In `video/`:
+
+| File | Ratio | Length |
+|---|---|---|
+| `healthi-booth-runthrough-16x9.mp4` | 16:9, 1920 x 1080 | 34 s |
+| `healthi-booth-runthrough-1x1.mp4` | 1:1, 1080 x 1080 | 34 s |
+| `healthi-booth-runthrough.gif` | 16:9, 760 px wide | 34 s, silent loop |
+
+It runs: attract screen -> voice check counting down from 3:00 with the waveform live ->
+face scan counting down from 0:30 as the indicators fill -> wellness snapshot -> advocate
+handover. Silent, so it can sit behind a presenter or loop on a second screen.
+
+Recorded with `?preview=1`, which compresses the voice phase to 13 seconds and the scan to
+9 seconds so the countdowns still run smoothly end to end. The header badge reads
+"Preview - timings compressed" in that mode, so a viewer is never told a 3-minute check
+took 13 seconds. To re-record after a change, drive the page with Playwright's
+`recordVideo` and re-time the result to the measured wall-clock duration - Playwright's
+webm runs about 7% long.
+
 ## Exported stills
 
 In `exports/`, rendered at 2× for print and screen:
@@ -79,5 +101,9 @@ Checked against `healthi-face-scan-copy` and `healthi-credentials`:
   from healthi.my. The SVG is inline near the top of the body.
 - Replace the demo figures with a real captured session, or keep the "example session"
   badge visible so nothing reads as a guest's own numbers.
-- Poppins, IBM Plex Sans and IBM Plex Mono load from Google Fonts, so the booth screen
-  needs network access — or self-host the three faces if the venue Wi-Fi is unreliable.
+- **Self-host the three fonts before the booth.** Poppins, IBM Plex Sans and IBM Plex Mono
+  come from Google Fonts via a render-blocking stylesheet. On a cold load over a slow
+  connection this measured **13 seconds of blank white screen** before anything drew — on a
+  booth screen in front of a guest that is unusable. Drop the three faces next to this file
+  and swap the `<link>` for local `@font-face` rules, or the venue Wi-Fi decides how your
+  demo opens.
